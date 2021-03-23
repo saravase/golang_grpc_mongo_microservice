@@ -2,7 +2,12 @@ package restutil
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+)
+
+var (
+	ErrBodyEmpty = errors.New("body can't be empty")
 )
 
 type JError struct {
