@@ -14,19 +14,20 @@ var (
 	ErrEmptyEmail         = errors.New("email can't be empty")
 	ErrEmptyPassword      = errors.New("password can't be empty")
 	ErrEmailAlreadyExists = errors.New("email already exists")
+	ErrSignInFailed       = errors.New("signin failed")
 )
 
 func ValidateSignUp(u *pb.User) error {
 	if !bson.IsObjectIdHex(u.Id) {
 		return ErrInvalidUserId
 	}
-	if u.Name != "" {
+	if u.Name == "" {
 		return ErrEmptyName
 	}
-	if u.Email != "" {
+	if u.Email == "" {
 		return ErrEmptyEmail
 	}
-	if u.Password != "" {
+	if u.Password == "" {
 		return ErrEmptyPassword
 	}
 	return nil

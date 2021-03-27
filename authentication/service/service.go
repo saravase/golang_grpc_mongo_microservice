@@ -9,9 +9,19 @@ import (
 	"github.com/saravase/golang_grpc_mongo_microservice/authentication/repository"
 	"github.com/saravase/golang_grpc_mongo_microservice/authentication/validators"
 	"github.com/saravase/golang_grpc_mongo_microservice/pb"
+	"github.com/saravase/golang_grpc_mongo_microservice/security"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
+
+type AuthService interface {
+	SignUp(ctx context.Context, req *pb.User) (*pb.User, error)
+	SignIn(ctx context.Context, req *pb.SignInRequest) (*pb.SignInResponse, error)
+	GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.User, error)
+	ListUsers(req *pb.ListUserRequest, stream pb.AuthService_ListUsersServer) error
+	UpdateUser(ctx context.Context, req *pb.User) (*pb.User, error)
+	DeleteUser(ctx context.Context, req *pb.GetUserRequest) (*pb.DeleteUserResponse, error)
+}
 
 type authService struct {
 	usersRepository repository.UsersRepository
@@ -30,6 +40,10 @@ func (s *authService) SignUp(ctx context.Context, req *pb.User) (*pb.User, error
 	}
 	req.Name = strings.TrimSpace(req.Name)
 	req.Email = validators.NormalizeEmail(req.Email)
+	req.Password, err = security.EncryptPassword(req.Password)
+	if err != nil {
+		return nil, err
+	}
 
 	found, err := s.usersRepository.GetByEmail(req.Email)
 	if err == mgo.ErrNotFound {
@@ -47,6 +61,29 @@ func (s *authService) SignUp(ctx context.Context, req *pb.User) (*pb.User, error
 	}
 
 	return nil, validators.ErrEmailAlreadyExists
+}
+
+func (s *authService) SignIn(ctx context.Context, req *pb.SignInRequest) (*pb.SignInResponse, error) {
+	email := validators.NormalizeEmail(req.Email)
+	user, err := s.usersRepository.GetByEmail(email)
+	if err != nil {
+		return nil, validators.ErrSignInFailed
+	}
+
+	err = security.VerifyPassword(user.Password, req.Password)
+	if err != nil {
+		return nil, validators.ErrSignInFailed
+	}
+
+	token, err := security.NewToken(user.Id.Hex())
+	if err != nil {
+		return nil, validators.ErrSignInFailed
+	}
+
+	return &pb.SignInResponse{
+		User:  user.ToProtoBuffer(),
+		Token: token,
+	}, nil
 }
 
 func (s *authService) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.User, error) {

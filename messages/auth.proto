@@ -25,7 +25,18 @@ message DeleteUserResponse{
     string id = 1;
 }
 
+message SignInRequest{
+    string email = 1;
+    string password = 2;
+}
+
+message SignInResponse{
+    User user = 1;
+    string token = 2; 
+}
+
 service AuthService{
+    rpc SignIn(SignInRequest) returns (SignInResponse); //signin user
     rpc SignUp(User) returns (User); //create user
     rpc GetUser(GetUserRequest) returns (User); // get user
     rpc ListUsers(ListUserRequest) returns (stream User); // get all users
