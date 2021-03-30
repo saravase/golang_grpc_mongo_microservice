@@ -58,7 +58,7 @@ $ sudo docker exec -it mongo_container /bin/bash
 		    {
 			    "role" : "readWrite",
 			    "db" : "microservice"
-		    }
+		     }
 	    ]
     }
 
@@ -103,3 +103,111 @@ $ sudo docker exec -it mongo_container /bin/bash
 ### Generate code using protoc command:
 
     $ protoc -I=./messages ./messages/*.proto --go_out=plugins=grpc:.
+### Start minikube :
+    
+    $ minikube start --driver=docker
+
+### Verify minikube docker environment status:
+    
+    $ eval $(minikube docker-env)
+
+### Create docker image:
+    Navigate to k8s/docker directory
+
+    $ sh build.sh
+
+### Create mongodb kubernetes manifest files:
+    
+    - Persistent Volumes, Storage Class and Persistent Volume Claim : pv.yaml
+    - Secrets  : secrets.yaml
+    - StatefulSet and Service : sts.yaml
+
+    $ kubectl apply -f .
+
+### Execute mongodb pods :
+    
+    $ kubectl exec -it mongodb-0 /bin/bash
+
+    root@mongodb-0:/#  mongo -u admin -p admin --authenticationDatabase admin
+    
+    > show dbs;
+
+    admin   0.000GB
+    config  0.000GB
+    local   0.000GB
+
+    > use microservice;
+    
+    switched to db microservice
+
+    > db.createUser({'user': 'user','pwd': 'pass','roles': [{ 'role': 'readWrite', 'db': 'microservice'}]});
+
+        Successfully added user: {
+	    "user" : "user",
+	    "roles" : [
+		    {
+			    "role" : "readWrite",
+			    "db" : "microservice"
+		     }
+	    ]
+    }
+
+    root@b384d43582ac:/# mongo -u user -p pass --authenticationDatabase microservice
+    
+    MongoDB shell version v4.4.4
+    connecting to: mongodb://127.0.0.1:27017/?authSource=microservice&compressors=disabled&gssapiServiceName=mongodb
+    Implicit session: session { "id" : UUID("0ffd77a1-9882-486e-8d45-3f407ce32377") }
+    MongoDB server version: 4.4.4
+    
+    > use microservice
+    
+    switched to db microservice
+    
+    > show dbs;
+    > show collections;
+
+
+
+### Create authentication and api service kubernetes manifest files:
+
+    - Secret : secrets.yaml
+    - ConfigMap : configs.yaml
+    - Authentication Service : authentication.yaml
+    - REST api service  : api.yaml
+
+    $ kubectl apply -f .
+
+### Display running pods: 
+
+    $ kubectl get pods
+        
+        NAME                        READY   STATUS    RESTARTS   AGE
+        api-svc-64c68849b4-7qw74    1/1     Running   0          9m49s
+        api-svc-64c68849b4-965vk    1/1     Running   0          9m50s
+        api-svc-64c68849b4-vgfwd    1/1     Running   0          9m48s
+        auth-svc-848bb7548c-fv8h4   1/1     Running   0          9m47s
+        mongodb-0                   1/1     Running   0          3h39m
+
+### Terminate running pods:
+
+    $ kubectl delete -f .
+
+
+### Execute minikube dashboard:
+ 
+    $ minikube dashboard
+
+### Connect LoadBalancer Services:
+    
+    $ minikube tunnel
+
+### Show running services:
+
+    $ kubectl get svc
+
+    NAME           TYPE           CLUSTER-IP       EXTERNAL-IP      PORT(S)           AGE
+    api-service    LoadBalancer   10.109.252.239   10.109.252.239   9000:31053/TCP    20m
+    auth-service   NodePort       10.98.73.107     <none>           9001:30263/TCP    20m
+    kubernetes     ClusterIP      10.96.0.1        <none>           443/TCP           2d3h
+    mongodb        NodePort       10.111.214.193   <none>           27017:32739/TCP   3h49m
+
